@@ -14,8 +14,13 @@ const HttpStatusCodes = {
     Forbidden: 403,
 }
 
+const MessageStatuses = {
+    NotSent: 1,
+    Sent: 2
+}
+
 exports.handler = async (event) => {
-    let param, result, searchParams = {};
+    let param, result, searchParams = { status: { eq: MessageStatuses.Sent.toString() }};
 
     if (event.httpMethod !== 'GET') {
         return formatErrorResponse(HttpStatusCodes.Forbidden, 'Method not allowed')
@@ -41,7 +46,7 @@ exports.handler = async (event) => {
         }
 
         result = await MessageModel
-            .query(
+            .scan(
                 searchParams,
                 param.email && param.phoneNumber ? { conditionalOperator: 'OR' } : null
             )

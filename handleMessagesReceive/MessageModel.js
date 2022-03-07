@@ -17,7 +17,7 @@ const schema = new dynamoose.Schema(
     }
 );
 
-const MessageModel = dynamoose.model('messages', schema, {
+const MessageModel = dynamoose.model('tableName', schema, {
     create: false,
     waitForActive: false
 });
