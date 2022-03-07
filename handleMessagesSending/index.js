@@ -65,7 +65,7 @@ exports.handler = async (event) => {
 
             for (const message of parsedBody) {
                 if (message.email) {
-                    await sendEmail(sesFrom, message.email, message.text)
+                    // await sendEmail(sesFrom, message.email.S, message.text.S)
                 }
 
                 if (message.phoneNumber) {

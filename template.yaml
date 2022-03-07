@@ -172,3 +172,5 @@ Resources:
             TableName: !Ref myDB
         - SSMParameterReadPolicy:
             ParameterName: !Ref tableName
+        - SSMParameterReadPolicy:
+            ParameterName: !Ref sesFrom
