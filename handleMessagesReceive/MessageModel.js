@@ -13,11 +13,13 @@ const schema = new dynamoose.Schema(
     },
     {
         timestamps: true,
+        waitForActive: false
     }
 );
 
 const MessageModel = dynamoose.model('messages', schema, {
     create: false,
+    waitForActive: false
 });
 
 module.exports = { MessageModel };

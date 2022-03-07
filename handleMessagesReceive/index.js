@@ -14,8 +14,6 @@ const HttpStatusCodes = {
     Forbidden: 403,
 }
 
-const BASE_LIMIT = 100;
-
 exports.handler = async (event) => {
     let param, result;
 
@@ -32,16 +30,14 @@ exports.handler = async (event) => {
 
         if (param.email) {
             result = await MessageModel
-                .query("email")
-                .eq(param.email)
-                .limit(BASE_LIMIT);
+                .scan("email")
+                .contains(param.email)
         }
 
         if (param.phoneNumber) {
             result = await MessageModel
-                .query("phoneNumber")
-                .eq(param.phoneNumber)
-                .limit(BASE_LIMIT);
+                .scan("phoneNumber")
+                .contains(param.phoneNumber)
         }
 
         return {
