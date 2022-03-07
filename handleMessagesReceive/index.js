@@ -15,7 +15,7 @@ const HttpStatusCodes = {
 }
 
 exports.handler = async (event) => {
-    let param, result;
+    let param, result, searchParams = {};
 
     if (event.httpMethod !== 'GET') {
         return formatErrorResponse(HttpStatusCodes.Forbidden, 'Method not allowed')
@@ -29,16 +29,23 @@ exports.handler = async (event) => {
         }
 
         if (param.email) {
-            result = await MessageModel
-                .scan("email")
-                .contains(param.email)
+            searchParams.email = {
+                eq: param.email
+            }
         }
 
         if (param.phoneNumber) {
-            result = await MessageModel
-                .scan("phoneNumber")
-                .contains(param.phoneNumber)
+            searchParams.phoneNumber = {
+                eq: param.phoneNumber
+            }
         }
+
+        result = await MessageModel
+            .scan(
+                searchParams,
+                param.email && param.phoneNumber ? { conditionalOperator: 'OR' } : null
+            )
+            .exec()
 
         return {
             statusCode: HttpStatusCodes.OK,
