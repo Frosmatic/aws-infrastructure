@@ -41,7 +41,7 @@ exports.handler = async (event) => {
         }
 
         result = await MessageModel
-            .scan(
+            .query(
                 searchParams,
                 param.email && param.phoneNumber ? { conditionalOperator: 'OR' } : null
             )
