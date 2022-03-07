@@ -1,7 +1,4 @@
-const AWS = require('aws-sdk');
-const dynamoDB = new AWS.DynamoDB({ apiVersion: '2012-08-10' });
-
-const ssmTableParamName = `TABLE_NAME`;
+const { MessageModel } = require('./MessageModel');
 
 const formatErrorResponse = (code, message) => {
     return {
@@ -17,45 +14,42 @@ const HttpStatusCodes = {
     Forbidden: 403,
 }
 
+const BASE_LIMIT = 100;
+
 exports.handler = async (event) => {
-    let data, response, searchParam = {};
+    let param, result;
 
     if (event.httpMethod !== 'GET') {
         return formatErrorResponse(HttpStatusCodes.Forbidden, 'Method not allowed')
     }
 
     try {
-        data = JSON.parse(event.body);
+        param = event.queryStringParameters;
 
-        const { Parameters } = await ssm
-            .getParameters({ Names: [ ssmTableParamName] })
-            .promise();
-        const { Value: tableName } = Parameters.find(param => param.Name === ssmTableParamName);
-
-        if (data.email) {
-            searchParam.email = {
-                N: data.email
-            }
+        if (!param || (!param.email && !param.phoneNumber)) {
+            return formatErrorResponse(HttpStatusCodes.BadRequest, 'Allowed search by email or phone number')
         }
 
-        if (data.phone) {
-            searchParam.phone = {
-                N: data.phone
-            }
+        if (param.email) {
+            result = await MessageModel
+                .query("email")
+                .eq(param.email)
+                .limit(BASE_LIMIT);
         }
 
-        response = await dynamoDB
-            .getItem({
-                TableName: tableName,
-                Key: searchParam
-            })
-            .promise()
+        if (param.phoneNumber) {
+            result = await MessageModel
+                .query("phoneNumber")
+                .eq(param.phoneNumber)
+                .limit(BASE_LIMIT);
+        }
 
         return {
             statusCode: HttpStatusCodes.OK,
-            body: JSON.stringify(response),
+            body: JSON.stringify(result),
         };
     } catch (e) {
+        console.log(JSON.stringify(e))
         return formatErrorResponse(e.code, e.message)
     }
 };

@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "aws-sdk": "^2.1087.0"
+    "aws-sdk": "^2.1087.0",
+    "dynamoose": "^2.8.5"
   }
 }

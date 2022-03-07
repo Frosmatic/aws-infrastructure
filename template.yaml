@@ -16,6 +16,9 @@ Parameters:
   snsNameParam:
     Type: String
     Default: snsName
+  sesFromParam:
+    Type: String
+    Default: sesFrom
 
 Resources:
   DynamoDbTableKmsKey:
@@ -75,6 +78,14 @@ Resources:
       Type: String
       Name: SNS_NAME
       Value: !Ref snsNameParam
+
+  sesFrom:
+    Type: AWS::SSM::Parameter
+    Properties:
+      DataType: text
+      Type: String
+      Name: SES_FROM
+      Value: !Ref sesFromParam
 
   myDB:
     Type: AWS::DynamoDB::Table
@@ -141,8 +152,10 @@ Resources:
             Auth:
               ApiKeyRequired: true
       Policies:
-        DynamoDBReadPolicy:
-          TableName: !Ref myDB
+        - DynamoDBReadPolicy:
+            TableName: !Ref myDB
+        - SSMParameterReadPolicy:
+            ParameterName: !Ref tableName
 
   SQSQueueFunction:
     Type: AWS::Serverless::Function
