@@ -1,0 +1,161 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Globals:
+  Function:
+    Runtime: nodejs14.x
+    Handler: index.handler
+
+Parameters:
+  sqsNameParam:
+    Type: String
+    Default: sqsName
+  tableNameParam:
+    Type: String
+    Default: tableName
+  snsNameParam:
+    Type: String
+    Default: snsName
+
+Resources:
+  DynamoDbTableKmsKey:
+    Type: AWS::KMS::Key
+    Properties:
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+            Action: kms:*
+            Resource: '*'
+          - Effect: Allow
+            Principal:
+              AWS: '*'
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+            Resource: '*'
+            Condition:
+              StringEquals:
+                kms:CallerAccount: !Ref AWS::AccountId
+                kms:ViaService: !Sub dynamodb.${AWS::Region}.amazonaws.com
+
+  MyApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Dev
+      Auth:
+        ApiKeyRequired: true
+        UsagePlan:
+          CreateUsagePlan: PER_API
+          UsagePlanName: GatewayAuthorization
+
+  sqsName:
+    Type: AWS::SSM::Parameter
+    Properties:
+      DataType: text
+      Type: String
+      Name: SQS_NAME
+      Value: !Ref sqsNameParam
+
+  tableName:
+    Type: AWS::SSM::Parameter
+    Properties:
+      DataType: text
+      Type: String
+      Name: TABLE_NAME
+      Value: !Ref tableNameParam
+
+  snsName:
+    Type: AWS::SSM::Parameter
+    Properties:
+      DataType: text
+      Type: String
+      Name: SNS_NAME
+      Value: !Ref snsNameParam
+
+  myDB:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref tableNameParam
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      SSESpecification:
+        KMSMasterKeyId: !Ref DynamoDbTableKmsKey
+        SSEEnabled: true
+        SSEType: KMS
+
+  SimpleQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Ref sqsNameParam
+
+  LambdaSNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: !Ref snsNameParam
+
+  LambdaWrite:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: handleMessagesCreation/
+      Events:
+        apiForLambda:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MyApi
+            Path: /send-messages
+            Method: post
+            Auth:
+              ApiKeyRequired: true
+      Policies:
+        - DynamoDBWritePolicy:
+            TableName: !Ref myDB
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt SimpleQueue.QueueName
+        - SSMParameterReadPolicy:
+            ParameterName: !Ref sqsName
+        - SSMParameterReadPolicy:
+            ParameterName: !Ref tableName
+
+  LambdaRead:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: handleMessagesReceive/
+      Events:
+        apiForLambda:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MyApi
+            Path: /get-messages
+            Method: get
+            Auth:
+              ApiKeyRequired: true
+      Policies:
+        DynamoDBReadPolicy:
+          TableName: !Ref myDB
+
+  SQSQueueFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: handleMessagesSending/
+      Events:
+        MySQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt SimpleQueue.Arn
+            BatchSize: 10
+      Policies:
+        - DynamoDBWritePolicy:
+            TableName: !Ref myDB
+        - SSMParameterReadPolicy:
+            ParameterName: !Ref tableName
